@@ -2,11 +2,16 @@ const mysql = require('mysql2/promise');
 require('dotenv').config();
 const { DB_HOST, DB_USER, DB_PASSWORD, DB_NAME, DB_PORT } = require('./config.js');
 
-// Validación de variables de entorno
-const requiredEnvVars = ['DB_HOST', 'DB_USER', 'DB_PASSWORD', 'DB_NAME'];
-for (const envVar of requiredEnvVars) {
-    if (!process.env[envVar]) {
-        throw new Error(`La variable de entorno ${envVar} es requerida`);
+// Validación de variables de entorno (acepta Railway y local)
+const envMapping = {
+    DB_HOST: process.env.MYSQLHOST || process.env.DB_HOST,
+    DB_USER: process.env.MYSQLUSER || process.env.DB_USER,
+    DB_PASSWORD: process.env.MYSQLPASSWORD || process.env.DB_PASSWORD,
+    DB_NAME: process.env.MYSQLDATABASE || process.env.DB_NAME
+};
+for (const [envVar, value] of Object.entries(envMapping)) {
+    if (!value) {
+        throw new Error(`La variable de entorno ${envVar} (o su equivalente de Railway) es requerida`);
     }
 }
 
