@@ -10,7 +10,12 @@ async function testRegister() {
             edad: 2,
             raza: "Labrador",
             tamaño: "Grande",
-            ubicacion: "Lima"
+            vacunado: 0,
+            desparasitado: 0,
+            personalidad: "",
+            ubicacion: "Lima",
+            imagen_url: "",
+            estado: "Disponible"
         };
 
         console.log('=== Iniciando prueba de registro ===');
