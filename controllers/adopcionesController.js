@@ -32,7 +32,7 @@ const adopcionesController = {
             
             // Verificar si ya existe una adopción pendiente para esta mascota
             const [adopcionExistente] = await pool.query(
-                'SELECT id FROM adopciones WHERE mascota_id = ? AND estado = "Pendiente"',
+                'SELECT id FROM solicitudes_adopcion WHERE mascota_id = ? AND estado = "Pendiente"',
                 [mascota_id]
             );
             
@@ -42,7 +42,7 @@ const adopcionesController = {
             
             // Insertar la adopción
             const [result] = await pool.query(
-                'INSERT INTO adopciones (usuario_id, mascota_id, estado) VALUES (?, ?, ?)',
+                'INSERT INTO solicitudes_adopcion (usuario_id, mascota_id, estado) VALUES (?, ?, ?)',
                 [usuario_id, mascota_id, estado]
             );
             
@@ -57,7 +57,7 @@ const adopcionesController = {
             // Obtener los detalles completos de la adopción
             const [adopcion] = await pool.query(`
                 SELECT a.*, u.nombre as usuario_nombre, m.nombre as mascota_nombre
-                FROM adopciones a
+                FROM solicitudes_adopcion a
                 JOIN usuarios u ON a.usuario_id = u.id
                 JOIN mascotas m ON a.mascota_id = m.id
                 WHERE a.id = ?
@@ -82,7 +82,7 @@ const adopcionesController = {
                     m.especie as mascota_especie,
                     m.raza as mascota_raza,
                     m.edad as mascota_edad
-                FROM adopciones a
+                FROM solicitudes_adopcion a
                 JOIN usuarios u ON a.usuario_id = u.id
                 JOIN mascotas m ON a.mascota_id = m.id
                 ORDER BY a.fecha_creacion DESC
@@ -108,7 +108,7 @@ const adopcionesController = {
                     m.raza as mascota_raza,
                     m.edad as mascota_edad,
                     m.descripcion as mascota_descripcion
-                FROM adopciones a
+                FROM solicitudes_adopcion a
                 JOIN usuarios u ON a.usuario_id = u.id
                 JOIN mascotas m ON a.mascota_id = m.id
                 WHERE a.id = ?
@@ -133,7 +133,7 @@ const adopcionesController = {
             
             // Verificar si la adopción existe
             const [adopciones] = await pool.query(
-                'SELECT * FROM adopciones WHERE id = ?',
+                'SELECT * FROM solicitudes_adopcion WHERE id = ?',
                 [id]
             );
             
@@ -163,7 +163,7 @@ const adopcionesController = {
             
             // Actualizar la adopción
             await pool.query(
-                'UPDATE adopciones SET usuario_id = ?, mascota_id = ?, estado = ? WHERE id = ?',
+                'UPDATE solicitudes_adopcion SET usuario_id = ?, mascota_id = ?, estado = ? WHERE id = ?',
                 [usuario_id, mascota_id, estado, id]
             );
             
@@ -185,7 +185,7 @@ const adopcionesController = {
                     m.especie as mascota_especie,
                     m.raza as mascota_raza,
                     m.edad as mascota_edad
-                FROM adopciones a
+                FROM solicitudes_adopcion a
                 JOIN usuarios u ON a.usuario_id = u.id
                 JOIN mascotas m ON a.mascota_id = m.id
                 WHERE a.id = ?
@@ -205,7 +205,7 @@ const adopcionesController = {
             
             // Verificar si la adopción existe
             const [adopciones] = await pool.query(
-                'SELECT * FROM adopciones WHERE id = ?',
+                'SELECT * FROM solicitudes_adopcion WHERE id = ?',
                 [id]
             );
             
@@ -222,7 +222,7 @@ const adopcionesController = {
             }
             
             // Eliminar la adopción
-            await pool.query('DELETE FROM adopciones WHERE id = ?', [id]);
+            await pool.query('DELETE FROM solicitudes_adopcion WHERE id = ?', [id]);
             
             res.json({ message: 'Adopción eliminada correctamente' });
         } catch (error) {
