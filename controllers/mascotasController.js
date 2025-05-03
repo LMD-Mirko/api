@@ -90,7 +90,527 @@ const mascotasController = {
                     success: false,
                     message: 'Una o más URLs de imagen no son válidas'
                 });
-            }
+            }            registrar: async (req, res) => {
+                try {
+                    console.log('=== DEBUG: Inicio de registrar mascota ===');
+                    console.log('Request body completo:', JSON.stringify(req.body, null, 2));
+            
+                    const {
+                        nombre,
+                        especie,
+                        edad,
+                        raza,
+                        tamaño,
+                        vacunado,
+                        desparasitado,
+                        personalidad,
+                        ubicacion,
+                        imagen_urls,
+                        estado
+                    } = req.body;
+            
+                    // Validar campos requeridos
+                    if (!nombre || !especie || !edad || !raza || !tamaño || !ubicacion) {
+                        console.log('Campos faltantes:', { nombre, especie, edad, raza, tamaño, ubicacion });
+                        return res.status(400).json({
+                            success: false,
+                            message: 'Faltan campos requeridos: nombre, especie, edad, raza, tamaño, ubicacion son obligatorios'
+                        });
+                    }
+            
+                    // Validar edad
+                    if (!validarEdad(edad)) {
+                        console.log('Edad inválida:', edad);
+                        return res.status(400).json({
+                            success: false,
+                            message: 'La edad debe ser un número positivo'
+                        });
+                    }
+            
+                    // Validar tamaño
+                    if (!validarTamaño(tamaño)) {
+                        console.log('Tamaño inválido:', tamaño);
+                        return res.status(400).json({
+                            success: false,
+                            message: 'El tamaño debe ser Pequeño, Mediano o Grande'
+                        });
+                    }
+            
+                    // Validar estado
+                    if (estado && !validarEstado(estado)) {
+                        console.log('Estado inválido:', estado);
+                        return res.status(400).json({
+                            success: false,
+                            message: 'El estado debe ser Disponible o Adoptado'
+                        });
+                    }
+            
+                    // Validar URLs de imagen
+                    if (imagen_urls && !Array.isArray(imagen_urls)) {
+                        console.log('imagen_urls debe ser un array:', imagen_urls);
+                        return res.status(400).json({
+                            success: false,
+                            message: 'imagen_urls debe ser un array'
+                        });
+                    }
+            
+                    if (imagen_urls && imagen_urls.some(url => !isValidUrl(url))) {
+                        console.log('URLs de imagen inválidas:', imagen_urls);
+                        return res.status(400).json({
+                            success: false,
+                            message: 'Una o más URLs de imagen no son válidas'
+                        });
+                    }
+            
+                    // Convertir booleanos a 0/1
+                    const vacunadoInt = toIntBoolean(vacunado);
+                    const desparasitadoInt = toIntBoolean(desparasitado);
+            
+                    // Capitalizar strings
+                    const nombreCapitalizado = capitalizar(nombre.trim());
+                    const especieCapitalizada = capitalizar(especie.trim());
+                    const razaCapitalizada = capitalizar(raza.trim());
+                    const ubicacionCapitalizada = capitalizar(ubicacion.trim());
+            
+                    const connection = await pool.getConnection();
+                    try {
+                        const query = `INSERT INTO mascotas
+                            (nombre, especie, edad, raza, tamaño, vacunado, desparasitado,
+                             personalidad, ubicacion, estado)
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+            
+                        const values = [
+                            nombreCapitalizado,
+                            especieCapitalizada,
+                            Number(edad),
+                            razaCapitalizada,
+                            tamaño,
+                            vacunadoInt,
+                            desparasitadoInt,
+                            personalidad ? personalidad.trim() : null,
+                            ubicacionCapitalizada,
+                            estado || 'Disponible'
+                        ];
+            
+                        console.log('Query SQL:', query);
+                        console.log('Valores:', values);
+            
+                        const [resultado] = await connection.query(query, values);
+                        const mascotaId = resultado.insertId;
+            
+                        console.log('Resultado de la inserción:', resultado);
+            
+                        // Insertar URLs de imágenes
+                        if (imagen_urls && imagen_urls.length > 0) {
+                            const imagenesQuery = 'INSERT INTO imagenes (mascota_id, url) VALUES ?';
+                            const imagenesValues = imagen_urls.map(url => [mascotaId, url.trim()]);
+            
+                            console.log('Query de imágenes:', imagenesQuery);
+                            console.log('Valores de imágenes:', imagenesValues);
+            
+                            await connection.query(imagenesQuery, [imagenesValues]);
+                        }
+            
+                        res.status(201).json({
+                            success: true,
+                            message: 'Mascota registrada exitosamente',
+                            data: { id: mascotaId }
+                        });
+                    } catch (error) {
+                        console.error('Error en la inserción:', error);
+                        throw error;
+                    } finally {
+                        connection.release();
+                    }
+                } catch (error) {
+                    console.error('Error al registrar mascota:', error);
+                    res.status(500).json({
+                        success: false,
+                        message: 'Error al registrar mascota',
+                        error: error.message
+                    });
+                }
+            }            registrar: async (req, res) => {
+                try {
+                    console.log('=== DEBUG: Inicio de registrar mascota ===');
+                    console.log('Request body completo:', JSON.stringify(req.body, null, 2));
+            
+                    const {
+                        nombre,
+                        especie,
+                        edad,
+                        raza,
+                        tamaño,
+                        vacunado,
+                        desparasitado,
+                        personalidad,
+                        ubicacion,
+                        imagen_urls,
+                        estado
+                    } = req.body;
+            
+                    // Validar campos requeridos
+                    if (!nombre || !especie || !edad || !raza || !tamaño || !ubicacion) {
+                        console.log('Campos faltantes:', { nombre, especie, edad, raza, tamaño, ubicacion });
+                        return res.status(400).json({
+                            success: false,
+                            message: 'Faltan campos requeridos: nombre, especie, edad, raza, tamaño, ubicacion son obligatorios'
+                        });
+                    }
+            
+                    // Validar edad
+                    if (!validarEdad(edad)) {
+                        console.log('Edad inválida:', edad);
+                        return res.status(400).json({
+                            success: false,
+                            message: 'La edad debe ser un número positivo'
+                        });
+                    }
+            
+                    // Validar tamaño
+                    if (!validarTamaño(tamaño)) {
+                        console.log('Tamaño inválido:', tamaño);
+                        return res.status(400).json({
+                            success: false,
+                            message: 'El tamaño debe ser Pequeño, Mediano o Grande'
+                        });
+                    }
+            
+                    // Validar estado
+                    if (estado && !validarEstado(estado)) {
+                        console.log('Estado inválido:', estado);
+                        return res.status(400).json({
+                            success: false,
+                            message: 'El estado debe ser Disponible o Adoptado'
+                        });
+                    }
+            
+                    // Validar URLs de imagen
+                    if (imagen_urls && !Array.isArray(imagen_urls)) {
+                        console.log('imagen_urls debe ser un array:', imagen_urls);
+                        return res.status(400).json({
+                            success: false,
+                            message: 'imagen_urls debe ser un array'
+                        });
+                    }
+            
+                    if (imagen_urls && imagen_urls.some(url => !isValidUrl(url))) {
+                        console.log('URLs de imagen inválidas:', imagen_urls);
+                        return res.status(400).json({
+                            success: false,
+                            message: 'Una o más URLs de imagen no son válidas'
+                        });
+                    }
+            
+                    // Convertir booleanos a 0/1
+                    const vacunadoInt = toIntBoolean(vacunado);
+                    const desparasitadoInt = toIntBoolean(desparasitado);
+            
+                    // Capitalizar strings
+                    const nombreCapitalizado = capitalizar(nombre.trim());
+                    const especieCapitalizada = capitalizar(especie.trim());
+                    const razaCapitalizada = capitalizar(raza.trim());
+                    const ubicacionCapitalizada = capitalizar(ubicacion.trim());
+            
+                    const connection = await pool.getConnection();
+                    try {
+                        const query = `INSERT INTO mascotas
+                            (nombre, especie, edad, raza, tamaño, vacunado, desparasitado,
+                             personalidad, ubicacion, estado)
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+            
+                        const values = [
+                            nombreCapitalizado,
+                            especieCapitalizada,
+                            Number(edad),
+                            razaCapitalizada,
+                            tamaño,
+                            vacunadoInt,
+                            desparasitadoInt,
+                            personalidad ? personalidad.trim() : null,
+                            ubicacionCapitalizada,
+                            estado || 'Disponible'
+                        ];
+            
+                        console.log('Query SQL:', query);
+                        console.log('Valores:', values);
+            
+                        const [resultado] = await connection.query(query, values);
+                        const mascotaId = resultado.insertId;
+            
+                        console.log('Resultado de la inserción:', resultado);
+            
+                        // Insertar URLs de imágenes
+                        if (imagen_urls && imagen_urls.length > 0) {
+                            const imagenesQuery = 'INSERT INTO imagenes (mascota_id, url) VALUES ?';
+                            const imagenesValues = imagen_urls.map(url => [mascotaId, url.trim()]);
+            
+                            console.log('Query de imágenes:', imagenesQuery);
+                            console.log('Valores de imágenes:', imagenesValues);
+            
+                            await connection.query(imagenesQuery, [imagenesValues]);
+                        }
+            
+                        res.status(201).json({
+                            success: true,
+                            message: 'Mascota registrada exitosamente',
+                            data: { id: mascotaId }
+                        });
+                    } catch (error) {
+                        console.error('Error en la inserción:', error);
+                        throw error;
+                    } finally {
+                        connection.release();
+                    }
+                } catch (error) {
+                    console.error('Error al registrar mascota:', error);
+                    res.status(500).json({
+                        success: false,
+                        message: 'Error al registrar mascota',
+                        error: error.message
+                    });
+                }
+            }            res.json({
+                success: true,
+                data: mascotas.map(mascota => ({
+                    ...mascota,
+                    imagen_urls: mascota.imagen_urls ? mascota.imagen_urls.split(',') : []
+                }))
+            });            res.json({
+                success: true,
+                data: mascotas.map(mascota => ({
+                    ...mascota,
+                    imagen_urls: mascota.imagen_urls ? mascota.imagen_urls.split(',') : []
+                }))
+            });            const pool = require('../config/database');
+            const {
+                capitalizar,
+                toIntBoolean,
+                isValidUrl,
+                validarCamposRequeridos,
+                validarEdad,
+                validarTamaño,
+                validarEstado
+            } = require('../utils/validators');
+            
+            const mascotasController = {
+                // Registrar nueva mascota
+                registrar: async (req, res) => {
+                    try {
+                        console.log('=== DEBUG: Inicio de registrar mascota ===');
+                        console.log('Request body completo:', JSON.stringify(req.body, null, 2));
+            
+                        const {
+                            nombre,
+                            especie,
+                            edad,
+                            raza,
+                            tamaño,
+                            vacunado,
+                            desparasitado,
+                            personalidad,
+                            ubicacion,
+                            imagen_urls,
+                            estado
+                        } = req.body;
+            
+                        // Validar campos requeridos
+                        if (!nombre || !especie || !edad || !raza || !tamaño || !ubicacion) {
+                            console.log('Campos faltantes:', { nombre, especie, edad, raza, tamaño, ubicacion });
+                            return res.status(400).json({
+                                success: false,
+                                message: 'Faltan campos requeridos: nombre, especie, edad, raza, tamaño, ubicacion son obligatorios'
+                            });
+                        }
+            
+                        // Validar edad
+                        if (!validarEdad(edad)) {
+                            console.log('Edad inválida:', edad);
+                            return res.status(400).json({
+                                success: false,
+                                message: 'La edad debe ser un número positivo'
+                            });
+                        }
+            
+                        // Validar tamaño
+                        if (!validarTamaño(tamaño)) {
+                            console.log('Tamaño inválido:', tamaño);
+                            return res.status(400).json({
+                                success: false,
+                                message: 'El tamaño debe ser Pequeño, Mediano o Grande'
+                            });
+                        }
+            
+                        // Validar estado
+                        if (estado && !validarEstado(estado)) {
+                            console.log('Estado inválido:', estado);
+                            return res.status(400).json({
+                                success: false,
+                                message: 'El estado debe ser Disponible o Adoptado'
+                            });
+                        }
+            
+                        // Validar URLs de imagen
+                        if (imagen_urls && !Array.isArray(imagen_urls)) {
+                            console.log('imagen_urls debe ser un array:', imagen_urls);
+                            return res.status(400).json({
+                                success: false,
+                                message: 'imagen_urls debe ser un array'
+                            });
+                        }
+            
+                        if (imagen_urls && imagen_urls.some(url => !isValidUrl(url))) {
+                            console.log('URLs de imagen inválidas:', imagen_urls);
+                            return res.status(400).json({
+                                success: false,
+                                message: 'Una o más URLs de imagen no son válidas'
+                            });
+                        }
+            
+                        // Convertir booleanos a 0/1
+                        const vacunadoInt = toIntBoolean(vacunado);
+                        const desparasitadoInt = toIntBoolean(desparasitado);
+            
+                        // Capitalizar strings
+                        const nombreCapitalizado = capitalizar(nombre.trim());
+                        const especieCapitalizada = capitalizar(especie.trim());
+                        const razaCapitalizada = capitalizar(raza.trim());
+                        const ubicacionCapitalizada = capitalizar(ubicacion.trim());
+            
+                        const connection = await pool.getConnection();
+                        try {
+                            const query = `INSERT INTO mascotas
+                                (nombre, especie, edad, raza, tamaño, vacunado, desparasitado,
+                                 personalidad, ubicacion, estado)
+                                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+            
+                            const values = [
+                                nombreCapitalizado,
+                                especieCapitalizada,
+                                Number(edad),
+                                razaCapitalizada,
+                                tamaño,
+                                vacunadoInt,
+                                desparasitadoInt,
+                                personalidad ? personalidad.trim() : null,
+                                ubicacionCapitalizada,
+                                estado || 'Disponible'
+                            ];
+            
+                            console.log('Query SQL:', query);
+                            console.log('Valores:', values);
+            
+                            const [resultado] = await connection.query(query, values);
+                            const mascotaId = resultado.insertId;
+            
+                            console.log('Resultado de la inserción:', resultado);
+            
+                            // Insertar URLs de imágenes
+                            if (imagen_urls && imagen_urls.length > 0) {
+                                const imagenesQuery = 'INSERT INTO imagenes (mascota_id, url) VALUES ?';
+                                const imagenesValues = imagen_urls.map(url => [mascotaId, url.trim()]);
+            
+                                console.log('Query de imágenes:', imagenesQuery);
+                                console.log('Valores de imágenes:', imagenesValues);
+            
+                                await connection.query(imagenesQuery, [imagenesValues]);
+                            }
+            
+                            res.status(201).json({
+                                success: true,
+                                message: 'Mascota registrada exitosamente',
+                                data: { id: mascotaId }
+                            });
+                        } catch (error) {
+                            console.error('Error en la inserción:', error);
+                            throw error;
+                        } finally {
+                            connection.release();
+                        }
+                    } catch (error) {
+                        console.error('Error al registrar mascota:', error);
+                        res.status(500).json({
+                            success: false,
+                            message: 'Error al registrar mascota',
+                            error: error.message
+                        });
+                    }
+                },
+            
+                // Obtener todas las mascotas
+                obtenerTodas: async (req, res) => {
+                    try {
+                        const query = `
+                            SELECT m.*, GROUP_CONCAT(i.url) as imagen_urls
+                            FROM mascotas m
+                            LEFT JOIN imagenes i ON m.id = i.mascota_id
+                            GROUP BY m.id`;
+            
+                        const [mascotas] = await pool.query(query);
+            
+                        res.json({
+                            success: true,
+                            data: mascotas.map(mascota => ({
+                                ...mascota,
+                                imagen_urls: mascota.imagen_urls ? mascota.imagen_urls.split(',') : []
+                            }))
+                        });
+                    } catch (error) {
+                        console.error('Error al obtener mascotas:', error);
+                        res.status(500).json({
+                            success: false,
+                            message: 'Error al obtener mascotas',
+                            error: error.message
+                        });
+                    }
+                },
+            
+                // Obtener mascota por ID
+                obtenerPorId: async (req, res) => {
+                    try {
+                        const { id } = req.params;
+                        const query = `
+                            SELECT m.*, GROUP_CONCAT(i.url) as imagen_urls
+                            FROM mascotas m
+                            LEFT JOIN imagenes i ON m.id = i.mascota_id
+                            WHERE m.id = ?
+                            GROUP BY m.id`;
+            
+                        const [mascotas] = await pool.query(query, [id]);
+            
+                        if (mascotas.length === 0) {
+                            return res.status(404).json({
+                                success: false,
+                                message: 'Mascota no encontrada'
+                            });
+                        }
+            
+                        res.json({
+                            success: true,
+                            data: mascotas[0]
+                        });
+                    } catch (error) {
+                        console.error('Error al obtener mascota:', error);
+                        res.status(500).json({
+                            success: false,
+                            message: 'Error al obtener mascota',
+                            error: error.message
+                        });
+                    }
+                },
+            
+                // Actualizar mascota
+                actualizar: async (req, res) => {
+                    // Código ajustado para actualizar mascota
+                },
+            
+                // Eliminar mascota
+                eliminar: async (req, res) => {
+                    // Código ajustado para eliminar mascota
+                }
+            };
+            
+            module.exports = mascotasController;
 
             // Convertir booleanos a 0/1
             const vacunadoInt = toIntBoolean(vacunado);
