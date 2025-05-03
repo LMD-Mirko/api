@@ -32,8 +32,36 @@ app.use(cors({
     credentials: true
 }));
 
+// Middleware para parsear JSON
+app.use(express.json({ 
+    limit: '10kb',
+    verify: (req, res, buf) => {
+        try {
+            JSON.parse(buf);
+        } catch (e) {
+            res.status(400).json({
+                success: false,
+                message: "JSON inválido en la petición",
+                error: e.message
+            });
+            throw e;
+        }
+    }
+}));
+
+// Middleware para manejar errores de JSON
+app.use((err, req, res, next) => {
+    if (err instanceof SyntaxError && err.status === 400 && 'body' in err) {
+        return res.status(400).json({
+            success: false,
+            message: "JSON inválido en la petición",
+            error: err.message
+        });
+    }
+    next();
+});
+
 // Limitar el tamaño del body
-app.use(express.json({ limit: '10kb' }));
 app.use(express.urlencoded({ extended: true, limit: '10kb' }));
 
 // Compresión de respuestas
@@ -59,7 +87,7 @@ if (process.env.NODE_ENV === 'production') {
 
 // Manejo de errores
 app.use((err, req, res, next) => {
-    console.error(err.stack);
+    console.error('Error:', err);
     res.status(500).json({
         success: false,
         message: 'Error interno del servidor',

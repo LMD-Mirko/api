@@ -18,6 +18,8 @@ const mascotasController = {
                 estado
             } = req.body;
 
+            console.log('Datos recibidos:', req.body);
+
             // Validar campos requeridos
             if (!nombre || !especie || !edad || !raza || !tamaño || !ubicacion) {
                 console.warn('Intento de registro con campos faltantes:', { nombre, especie, edad, raza, tamaño, ubicacion });
@@ -75,9 +77,13 @@ const mascotasController = {
                 });
             }
 
-            // Convertir vacunado y desparasitado a booleanos
-            const vacunadoBool = Boolean(vacunado);
-            const desparasitadoBool = Boolean(desparasitado);
+            // Convertir vacunado y desparasitado a 1/0
+            const vacunadoInt = vacunado ? 1 : 0;
+            const desparasitadoInt = desparasitado ? 1 : 0;
+
+            // Capitalizar la primera letra de especie y raza
+            const especieCapitalizada = especie.charAt(0).toUpperCase() + especie.slice(1).toLowerCase();
+            const razaCapitalizada = raza.charAt(0).toUpperCase() + raza.slice(1).toLowerCase();
 
             // Iniciar transacción
             const connection = await pool.getConnection();
@@ -89,14 +95,20 @@ const mascotasController = {
                     (nombre, especie, edad, raza, tamaño, vacunado, desparasitado, 
                      personalidad, ubicacion, imagen_url, estado) 
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-                    [nombre, especie, edad, raza, tamaño, vacunadoBool, desparasitadoBool, 
+                    [nombre, especieCapitalizada, edad, razaCapitalizada, tamaño, vacunadoInt, desparasitadoInt, 
                      personalidad || null, ubicacion, imagen_url || null, estado || 'Disponible']
                 );
 
                 await connection.commit();
                 connection.release();
 
-                console.log('Mascota registrada exitosamente:', { id: resultado.insertId, nombre, especie });
+                console.log('Mascota registrada exitosamente:', { 
+                    id: resultado.insertId, 
+                    nombre, 
+                    especie: especieCapitalizada,
+                    vacunado: vacunadoInt,
+                    desparasitado: desparasitadoInt
+                });
 
                 res.status(201).json({
                     success: true,
@@ -106,6 +118,7 @@ const mascotasController = {
             } catch (error) {
                 await connection.rollback();
                 connection.release();
+                console.error('Error en la transacción:', error);
                 throw error;
             }
         } catch (error) {
@@ -237,9 +250,9 @@ const mascotasController = {
                 });
             }
 
-            // Convertir vacunado y desparasitado a booleanos si se proporcionan
-            const vacunadoBool = vacunado !== undefined ? Boolean(vacunado) : undefined;
-            const desparasitadoBool = desparasitado !== undefined ? Boolean(desparasitado) : undefined;
+            // Convertir vacunado y desparasitado a 1/0 si se proporcionan
+            const vacunadoInt = vacunado !== undefined ? vacunado ? 1 : 0 : undefined;
+            const desparasitadoInt = desparasitado !== undefined ? desparasitado ? 1 : 0 : undefined;
 
             // Construir la consulta dinámicamente
             let updateQuery = 'UPDATE mascotas SET ';
@@ -266,13 +279,13 @@ const mascotasController = {
                 updateFields.push('tamaño = ?');
                 updateValues.push(tamaño);
             }
-            if (vacunadoBool !== undefined) {
+            if (vacunadoInt !== undefined) {
                 updateFields.push('vacunado = ?');
-                updateValues.push(vacunadoBool);
+                updateValues.push(vacunadoInt);
             }
-            if (desparasitadoBool !== undefined) {
+            if (desparasitadoInt !== undefined) {
                 updateFields.push('desparasitado = ?');
-                updateValues.push(desparasitadoBool);
+                updateValues.push(desparasitadoInt);
             }
             if (personalidad !== undefined) {
                 updateFields.push('personalidad = ?');
