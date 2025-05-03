@@ -64,7 +64,11 @@ const solicitudesController = {
     obtenerTodas: async (req, res) => {
         try {
             const [solicitudes] = await pool.query(`
-                SELECT s.*, m.nombre as nombre_mascota, u.nombre as nombre_usuario
+                SELECT 
+                    s.*, 
+                    m.nombre AS nombre_mascota, 
+                    m.especie AS especie_mascota, -- Incluir la columna especie
+                    u.nombre AS nombre_usuario
                 FROM solicitudes_adopcion s
                 JOIN mascotas m ON s.mascota_id = m.id
                 JOIN usuarios u ON s.usuario_id = u.id
@@ -87,7 +91,11 @@ const solicitudesController = {
         try {
             const { id } = req.params;
             const [solicitudes] = await pool.query(`
-                SELECT s.*, m.nombre as nombre_mascota, u.nombre as nombre_usuario
+                SELECT 
+                    s.*, 
+                    m.nombre AS nombre_mascota, 
+                    m.especie AS especie_mascota, -- Incluir la columna especie
+                    u.nombre AS nombre_usuario
                 FROM solicitudes_adopcion s
                 JOIN mascotas m ON s.mascota_id = m.id
                 JOIN usuarios u ON s.usuario_id = u.id
