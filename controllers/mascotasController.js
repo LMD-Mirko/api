@@ -81,6 +81,15 @@ const mascotasController = {
             const vacunadoInt = vacunado ? 1 : 0;
             const desparasitadoInt = desparasitado ? 1 : 0;
 
+            // Asegurar que especie tenga un valor válido
+            if (!especie || typeof especie !== 'string' || especie.trim() === '') {
+                console.warn('Especie inválida:', especie);
+                return res.status(400).json({
+                    success: false,
+                    message: 'La especie es requerida y debe ser un texto válido'
+                });
+            }
+
             // Capitalizar la primera letra de especie y raza
             const especieCapitalizada = especie.charAt(0).toUpperCase() + especie.slice(1).toLowerCase();
             const razaCapitalizada = raza.charAt(0).toUpperCase() + raza.slice(1).toLowerCase();
@@ -90,6 +99,20 @@ const mascotasController = {
             await connection.beginTransaction();
 
             try {
+                console.log('Intentando insertar mascota con datos:', {
+                    nombre,
+                    especie: especieCapitalizada,
+                    edad,
+                    raza: razaCapitalizada,
+                    tamaño,
+                    vacunado: vacunadoInt,
+                    desparasitado: desparasitadoInt,
+                    personalidad,
+                    ubicacion,
+                    imagen_url,
+                    estado: estado || 'Disponible'
+                });
+
                 const [resultado] = await connection.query(
                     `INSERT INTO mascotas 
                     (nombre, especie, edad, raza, tamaño, vacunado, desparasitado, 
@@ -119,6 +142,16 @@ const mascotasController = {
                 await connection.rollback();
                 connection.release();
                 console.error('Error en la transacción:', error);
+                
+                // Verificar si el error es específico de la especie
+                if (error.message.includes("Field 'especie'")) {
+                    return res.status(400).json({
+                        success: false,
+                        message: 'Error: El campo especie es requerido y no puede estar vacío',
+                        error: error.message
+                    });
+                }
+                
                 throw error;
             }
         } catch (error) {
