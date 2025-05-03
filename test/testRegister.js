@@ -4,17 +4,23 @@ const API_URL = 'https://web-production-aea20.up.railway.app/api/mascotas';
 
 async function testRegister() {
     try {
-        const mascota = {
+        // Crear el objeto con los campos mínimos primero
+        const mascotaBase = {
             nombre: "Max",
             especie: "Perro",
             edad: 2,
             raza: "Labrador",
             tamaño: "Grande",
+            ubicacion: "Lima"
+        };
+
+        // Agregar campos adicionales con valores por defecto
+        const mascota = {
+            ...mascotaBase,
             vacunado: 0,
             desparasitado: 0,
-            personalidad: "",
-            ubicacion: "Lima",
-            imagen_url: "",
+            personalidad: null,
+            imagen_url: null,
             estado: "Disponible"
         };
 

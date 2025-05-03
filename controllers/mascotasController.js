@@ -27,7 +27,7 @@ const mascotasController = {
                 desparasitado,
                 personalidad,
                 ubicacion,
-                imagen_url,
+                imagen_urls, // Cambiado a imagen_urls para manejar múltiples URLs
                 estado
             } = req.body;
 
@@ -42,7 +42,7 @@ const mascotasController = {
                 desparasitado: desparasitado || 'undefined',
                 personalidad: personalidad || 'undefined',
                 ubicacion: ubicacion || 'undefined',
-                imagen_url: imagen_url || 'undefined',
+                imagen_urls: imagen_urls || 'undefined',
                 estado: estado || 'undefined'
             });
 
@@ -75,12 +75,20 @@ const mascotasController = {
                 });
             }
 
-            // Validar URL de imagen
-            if (!isValidUrl(imagen_url)) {
-                console.log('URL de imagen inválida:', imagen_url);
+            // Validar URLs de imagen
+            if (imagen_urls && !Array.isArray(imagen_urls)) {
+                console.log('imagen_urls debe ser un array:', imagen_urls);
                 return res.status(400).json({
                     success: false,
-                    message: 'La URL de la imagen no es válida'
+                    message: 'imagen_urls debe ser un array'
+                });
+            }
+
+            if (imagen_urls && imagen_urls.some(url => !isValidUrl(url))) {
+                console.log('URLs de imagen inválidas:', imagen_urls);
+                return res.status(400).json({
+                    success: false,
+                    message: 'Una o más URLs de imagen no son válidas'
                 });
             }
 
@@ -105,17 +113,17 @@ const mascotasController = {
                 desparasitadoInt,
                 personalidad: personalidad ? personalidad.trim() : null,
                 ubicacionCapitalizada,
-                imagen_url: imagen_url ? imagen_url.trim() : null,
+                imagen_urls: imagen_urls ? imagen_urls.map(url => url.trim()) : [],
                 estado: estado || 'Disponible'
             });
 
             const connection = await pool.getConnection();
             try {
-                const query = `INSERT INTO mascotas 
-                    (nombre, especie, edad, raza, tamaño, vacunado, desparasitado, 
-                     personalidad, ubicacion, imagen_url, estado) 
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
-                
+                const query = `INSERT INTO mascotas
+                    (nombre, especie, edad, raza, tamaño, vacunado, desparasitado,
+                     personalidad, ubicacion, estado)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+
                 const values = [
                     nombreCapitalizado,
                     especieCapitalizada,
@@ -126,7 +134,6 @@ const mascotasController = {
                     desparasitadoInt,
                     personalidad ? personalidad.trim() : null,
                     ubicacionCapitalizada,
-                    imagen_url ? imagen_url.trim() : null,
                     estado || 'Disponible'
                 ];
 
@@ -134,13 +141,25 @@ const mascotasController = {
                 console.log('Valores:', values);
 
                 const [resultado] = await connection.query(query, values);
+                const mascotaId = resultado.insertId;
 
                 console.log('Resultado de la inserción:', resultado);
+
+                // Insertar URLs de imágenes
+                if (imagen_urls && imagen_urls.length > 0) {
+                    const imagenesQuery = 'INSERT INTO imagenes (mascota_id, url) VALUES ?';
+                    const imagenesValues = imagen_urls.map(url => [mascotaId, url.trim()]);
+
+                    console.log('Query de imágenes:', imagenesQuery);
+                    console.log('Valores de imágenes:', imagenesValues);
+
+                    await connection.query(imagenesQuery, [imagenesValues]);
+                }
 
                 res.status(201).json({
                     success: true,
                     message: 'Mascota registrada exitosamente',
-                    data: { id: resultado.insertId }
+                    data: { id: mascotaId }
                 });
             } catch (error) {
                 console.error('Error en la inserción:', error);
@@ -156,7 +175,7 @@ const mascotasController = {
             console.error('Código de error:', error.code);
             console.error('Mensaje de error:', error.message);
             console.error('Stack trace:', error.stack);
-            
+
             res.status(500).json({
                 success: false,
                 message: 'Error al registrar mascota',
@@ -169,8 +188,14 @@ const mascotasController = {
     // Obtener todas las mascotas
     obtenerTodas: async (req, res) => {
         try {
-            const [mascotas] = await pool.query('SELECT * FROM mascotas');
-            
+            const query = `
+                SELECT m.*, GROUP_CONCAT(i.url) as imagen_urls
+                FROM mascotas m
+                LEFT JOIN imagenes i ON m.id = i.mascota_id
+                GROUP BY m.id`;
+
+            const [mascotas] = await pool.query(query);
+
             res.json({
                 success: true,
                 data: mascotas
@@ -189,7 +214,14 @@ const mascotasController = {
     obtenerPorId: async (req, res) => {
         try {
             const { id } = req.params;
-            const [mascotas] = await pool.query('SELECT * FROM mascotas WHERE id = ?', [id]);
+            const query = `
+                SELECT m.*, GROUP_CONCAT(i.url) as imagen_urls
+                FROM mascotas m
+                LEFT JOIN imagenes i ON m.id = i.mascota_id
+                WHERE m.id = ?
+                GROUP BY m.id`;
+
+            const [mascotas] = await pool.query(query, [id]);
 
             if (mascotas.length === 0) {
                 console.warn('Mascota no encontrada:', id);
@@ -227,7 +259,7 @@ const mascotasController = {
                 desparasitado,
                 personalidad,
                 ubicacion,
-                imagen_url,
+                imagen_urls, // Cambiado a imagen_urls para manejar múltiples URLs
                 estado
             } = req.body;
 
@@ -265,11 +297,20 @@ const mascotasController = {
                 });
             }
 
-            // Validar URL de imagen si se proporciona
-            if (imagen_url && !isValidUrl(imagen_url)) {
+            // Validar URLs de imagen si se proporcionan
+            if (imagen_urls && !Array.isArray(imagen_urls)) {
+                console.log('imagen_urls debe ser un array:', imagen_urls);
                 return res.status(400).json({
                     success: false,
-                    message: 'La URL de la imagen no es válida'
+                    message: 'imagen_urls debe ser un array'
+                });
+            }
+
+            if (imagen_urls && imagen_urls.some(url => !isValidUrl(url))) {
+                console.log('URLs de imagen inválidas:', imagen_urls);
+                return res.status(400).json({
+                    success: false,
+                    message: 'Una o más URLs de imagen no son válidas'
                 });
             }
 
@@ -314,10 +355,6 @@ const mascotasController = {
                 updateFields.push('ubicacion = ?');
                 updateValues.push(capitalizar(ubicacion.trim()));
             }
-            if (imagen_url !== undefined) {
-                updateFields.push('imagen_url = ?');
-                updateValues.push(imagen_url.trim());
-            }
             if (estado) {
                 updateFields.push('estado = ?');
                 updateValues.push(estado);
@@ -333,21 +370,45 @@ const mascotasController = {
             updateQuery += updateFields.join(', ') + ' WHERE id = ?';
             updateValues.push(id);
 
-            const [resultado] = await pool.query(updateQuery, updateValues);
+            const connection = await pool.getConnection();
+            try {
+                await connection.beginTransaction();
 
-            if (resultado.affectedRows === 0) {
-                return res.status(404).json({
-                    success: false,
-                    message: 'Mascota no encontrada'
+                const [resultado] = await connection.query(updateQuery, updateValues);
+
+                if (resultado.affectedRows === 0) {
+                    return res.status(404).json({
+                        success: false,
+                        message: 'Mascota no encontrada'
+                    });
+                }
+
+                // Actualizar URLs de imágenes
+                if (imagen_urls) {
+                    await connection.query('DELETE FROM imagenes WHERE mascota_id = ?', [id]);
+
+                    if (imagen_urls.length > 0) {
+                        const imagenesQuery = 'INSERT INTO imagenes (mascota_id, url) VALUES ?';
+                        const imagenesValues = imagen_urls.map(url => [id, url.trim()]);
+
+                        await connection.query(imagenesQuery, [imagenesValues]);
+                    }
+                }
+
+                await connection.commit();
+
+                console.log('Mascota actualizada exitosamente:', { id, campos_actualizados: updateFields });
+
+                res.json({
+                    success: true,
+                    message: 'Mascota actualizada exitosamente'
                 });
+            } catch (error) {
+                await connection.rollback();
+                throw error;
+            } finally {
+                connection.release();
             }
-
-            console.log('Mascota actualizada exitosamente:', { id, campos_actualizados: updateFields });
-
-            res.json({
-                success: true,
-                message: 'Mascota actualizada exitosamente'
-            });
         } catch (error) {
             console.error('Error al actualizar mascota:', error);
             res.status(500).json({
@@ -373,22 +434,37 @@ const mascotasController = {
                 });
             }
 
-            const [resultado] = await pool.query('DELETE FROM mascotas WHERE id = ?', [id]);
+            const connection = await pool.getConnection();
+            try {
+                await connection.beginTransaction();
 
-            if (resultado.affectedRows === 0) {
-                console.warn('No se eliminó ninguna mascota:', id);
-                return res.status(404).json({
-                    success: false,
-                    message: 'Mascota no encontrada'
+                const [resultado] = await connection.query('DELETE FROM mascotas WHERE id = ?', [id]);
+
+                if (resultado.affectedRows === 0) {
+                    console.warn('No se eliminó ninguna mascota:', id);
+                    return res.status(404).json({
+                        success: false,
+                        message: 'Mascota no encontrada'
+                    });
+                }
+
+                // Eliminar imágenes asociadas
+                await connection.query('DELETE FROM imagenes WHERE mascota_id = ?', [id]);
+
+                await connection.commit();
+
+                console.log('Mascota eliminada exitosamente:', id);
+
+                res.json({
+                    success: true,
+                    message: 'Mascota eliminada exitosamente'
                 });
+            } catch (error) {
+                await connection.rollback();
+                throw error;
+            } finally {
+                connection.release();
             }
-
-            console.log('Mascota eliminada exitosamente:', id);
-
-            res.json({
-                success: true,
-                message: 'Mascota eliminada exitosamente'
-            });
         } catch (error) {
             console.error('Error al eliminar mascota:', error);
             res.status(500).json({
@@ -400,4 +476,4 @@ const mascotasController = {
     }
 };
 
-module.exports = mascotasController; 
+module.exports = mascotasController;
