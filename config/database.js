@@ -16,30 +16,48 @@ for (const [envVar, value] of Object.entries(envMapping)) {
 }
 
 const pool = mysql.createPool({
-    host: DB_HOST,
-    user: DB_USER,
-    password: DB_PASSWORD,
-    database: DB_NAME,
-    port: DB_PORT,
+    host: process.env.DB_HOST || 'localhost',
+    user: process.env.DB_USER || 'root',
+    password: process.env.DB_PASSWORD || '',
+    database: process.env.DB_NAME || 'adopcion_mascotas',
     waitForConnections: true,
     connectionLimit: 10,
     queueLimit: 0,
-    // Configuraciones adicionales para producción
     enableKeepAlive: true,
     keepAliveInitialDelay: 0,
-    // Manejo de reconexión
-    connectTimeout: 10000
+    // Configuración de SSL para producción
+    ssl: process.env.NODE_ENV === 'production' ? {
+        rejectUnauthorized: true
+    } : undefined
 });
 
-// Verificar la conexión al iniciar
-pool.getConnection()
-    .then(connection => {
+// Manejo de errores de conexión
+pool.on('error', (err) => {
+    console.error('Error en la conexión a la base de datos:', err);
+    if (err.code === 'PROTOCOL_CONNECTION_LOST') {
+        console.error('La conexión a la base de datos se perdió');
+    }
+    if (err.code === 'ER_CON_COUNT_ERROR') {
+        console.error('Demasiadas conexiones a la base de datos');
+    }
+    if (err.code === 'ECONNREFUSED') {
+        console.error('La conexión a la base de datos fue rechazada');
+    }
+});
+
+// Función para verificar la conexión
+const verificarConexion = async () => {
+    try {
+        const connection = await pool.getConnection();
         console.log('Conexión a la base de datos establecida correctamente');
         connection.release();
-    })
-    .catch(err => {
-        console.error('Error al conectar con la base de datos:', err);
+    } catch (error) {
+        console.error('Error al conectar a la base de datos:', error);
         process.exit(1);
-    });
+    }
+};
+
+// Verificar la conexión al iniciar
+verificarConexion();
 
 module.exports = pool;

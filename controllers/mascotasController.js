@@ -20,54 +20,100 @@ const mascotasController = {
 
             // Validar campos requeridos
             if (!nombre || !especie || !edad || !raza || !tamaño || !ubicacion) {
+                console.warn('Intento de registro con campos faltantes:', { nombre, especie, edad, raza, tamaño, ubicacion });
                 return res.status(400).json({
                     success: false,
-                    message: 'Faltan campos requeridos'
+                    message: 'Faltan campos requeridos',
+                    campos_faltantes: {
+                        nombre: !nombre,
+                        especie: !especie,
+                        edad: !edad,
+                        raza: !raza,
+                        tamaño: !tamaño,
+                        ubicacion: !ubicacion
+                    }
+                });
+            }
+
+            // Validar tipos de datos
+            if (typeof edad !== 'number' || edad < 0) {
+                console.warn('Edad inválida:', edad);
+                return res.status(400).json({
+                    success: false,
+                    message: 'La edad debe ser un número positivo'
                 });
             }
 
             // Validar que el tamaño sea uno de los valores permitidos
             const tamanosPermitidos = ['Pequeño', 'Mediano', 'Grande'];
             if (!tamanosPermitidos.includes(tamaño)) {
+                console.warn('Tamaño inválido:', tamaño);
                 return res.status(400).json({
                     success: false,
-                    message: 'El tamaño debe ser Pequeño, Mediano o Grande'
+                    message: 'El tamaño debe ser Pequeño, Mediano o Grande',
+                    valores_permitidos: tamanosPermitidos
                 });
             }
 
             // Validar que el estado sea uno de los valores permitidos
             const estadosPermitidos = ['Disponible', 'Adoptado'];
             if (estado && !estadosPermitidos.includes(estado)) {
+                console.warn('Estado inválido:', estado);
                 return res.status(400).json({
                     success: false,
-                    message: 'El estado debe ser Disponible o Adoptado'
+                    message: 'El estado debe ser Disponible o Adoptado',
+                    valores_permitidos: estadosPermitidos
                 });
             }
 
-            // Convertir vacunado y desparasitado a booleanos si no están definidos
-            const vacunadoBool = vacunado ? 1 : 0;
-            const desparasitadoBool = desparasitado ? 1 : 0;
+            // Sanitizar y validar URLs
+            if (imagen_url && !imagen_url.startsWith('http')) {
+                console.warn('URL de imagen inválida:', imagen_url);
+                return res.status(400).json({
+                    success: false,
+                    message: 'La URL de la imagen debe comenzar con http'
+                });
+            }
 
-            const [resultado] = await pool.query(
-                `INSERT INTO mascotas 
-                (nombre, especie, edad, raza, tamaño, vacunado, desparasitado, 
-                 personalidad, ubicacion, imagen_url, estado) 
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-                [nombre, especie, edad, raza, tamaño, vacunadoBool, desparasitadoBool, 
-                 personalidad || null, ubicacion, imagen_url || null, estado || 'Disponible']
-            );
+            // Convertir vacunado y desparasitado a booleanos
+            const vacunadoBool = Boolean(vacunado);
+            const desparasitadoBool = Boolean(desparasitado);
 
-            res.status(201).json({
-                success: true,
-                message: 'Mascota registrada exitosamente',
-                data: { id: resultado.insertId }
-            });
+            // Iniciar transacción
+            const connection = await pool.getConnection();
+            await connection.beginTransaction();
+
+            try {
+                const [resultado] = await connection.query(
+                    `INSERT INTO mascotas 
+                    (nombre, especie, edad, raza, tamaño, vacunado, desparasitado, 
+                     personalidad, ubicacion, imagen_url, estado) 
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                    [nombre, especie, edad, raza, tamaño, vacunadoBool, desparasitadoBool, 
+                     personalidad || null, ubicacion, imagen_url || null, estado || 'Disponible']
+                );
+
+                await connection.commit();
+                connection.release();
+
+                console.log('Mascota registrada exitosamente:', { id: resultado.insertId, nombre, especie });
+
+                res.status(201).json({
+                    success: true,
+                    message: 'Mascota registrada exitosamente',
+                    data: { id: resultado.insertId }
+                });
+            } catch (error) {
+                await connection.rollback();
+                connection.release();
+                throw error;
+            }
         } catch (error) {
             console.error('Error al registrar mascota:', error);
             res.status(500).json({
                 success: false,
                 message: 'Error al registrar mascota',
-                error: error.message
+                error: process.env.NODE_ENV === 'production' ? 'Error interno del servidor' : error.message
             });
         }
     },
@@ -86,7 +132,7 @@ const mascotasController = {
             res.status(500).json({
                 success: false,
                 message: 'Error al obtener mascotas',
-                error: error.message
+                error: process.env.NODE_ENV === 'production' ? 'Error interno del servidor' : error.message
             });
         }
     },
@@ -98,6 +144,7 @@ const mascotasController = {
             const [mascotas] = await pool.query('SELECT * FROM mascotas WHERE id = ?', [id]);
 
             if (mascotas.length === 0) {
+                console.warn('Mascota no encontrada:', id);
                 return res.status(404).json({
                     success: false,
                     message: 'Mascota no encontrada'
@@ -113,7 +160,7 @@ const mascotasController = {
             res.status(500).json({
                 success: false,
                 message: 'Error al obtener mascota',
-                error: error.message
+                error: process.env.NODE_ENV === 'production' ? 'Error interno del servidor' : error.message
             });
         }
     },
@@ -136,13 +183,34 @@ const mascotasController = {
                 estado
             } = req.body;
 
+            // Validar que la mascota exista
+            const [mascotaExistente] = await pool.query('SELECT id FROM mascotas WHERE id = ?', [id]);
+            if (mascotaExistente.length === 0) {
+                console.warn('Intento de actualizar mascota inexistente:', id);
+                return res.status(404).json({
+                    success: false,
+                    message: 'Mascota no encontrada'
+                });
+            }
+
+            // Validar tipos de datos si se proporcionan
+            if (edad !== undefined && (typeof edad !== 'number' || edad < 0)) {
+                console.warn('Edad inválida:', edad);
+                return res.status(400).json({
+                    success: false,
+                    message: 'La edad debe ser un número positivo'
+                });
+            }
+
             // Validar que el tamaño sea uno de los valores permitidos si se proporciona
             if (tamaño) {
                 const tamanosPermitidos = ['Pequeño', 'Mediano', 'Grande'];
                 if (!tamanosPermitidos.includes(tamaño)) {
+                    console.warn('Tamaño inválido:', tamaño);
                     return res.status(400).json({
                         success: false,
-                        message: 'El tamaño debe ser Pequeño, Mediano o Grande'
+                        message: 'El tamaño debe ser Pequeño, Mediano o Grande',
+                        valores_permitidos: tamanosPermitidos
                     });
                 }
             }
@@ -151,16 +219,27 @@ const mascotasController = {
             if (estado) {
                 const estadosPermitidos = ['Disponible', 'Adoptado'];
                 if (!estadosPermitidos.includes(estado)) {
+                    console.warn('Estado inválido:', estado);
                     return res.status(400).json({
                         success: false,
-                        message: 'El estado debe ser Disponible o Adoptado'
+                        message: 'El estado debe ser Disponible o Adoptado',
+                        valores_permitidos: estadosPermitidos
                     });
                 }
             }
 
+            // Sanitizar y validar URLs
+            if (imagen_url && !imagen_url.startsWith('http')) {
+                console.warn('URL de imagen inválida:', imagen_url);
+                return res.status(400).json({
+                    success: false,
+                    message: 'La URL de la imagen debe comenzar con http'
+                });
+            }
+
             // Convertir vacunado y desparasitado a booleanos si se proporcionan
-            const vacunadoBool = vacunado !== undefined ? (vacunado ? 1 : 0) : undefined;
-            const desparasitadoBool = desparasitado !== undefined ? (desparasitado ? 1 : 0) : undefined;
+            const vacunadoBool = vacunado !== undefined ? Boolean(vacunado) : undefined;
+            const desparasitadoBool = desparasitado !== undefined ? Boolean(desparasitado) : undefined;
 
             // Construir la consulta dinámicamente
             let updateQuery = 'UPDATE mascotas SET ';
@@ -175,7 +254,7 @@ const mascotasController = {
                 updateFields.push('especie = ?');
                 updateValues.push(especie);
             }
-            if (edad) {
+            if (edad !== undefined) {
                 updateFields.push('edad = ?');
                 updateValues.push(edad);
             }
@@ -213,6 +292,7 @@ const mascotasController = {
             }
 
             if (updateFields.length === 0) {
+                console.warn('Intento de actualización sin campos:', id);
                 return res.status(400).json({
                     success: false,
                     message: 'No se proporcionaron datos para actualizar'
@@ -225,11 +305,14 @@ const mascotasController = {
             const [resultado] = await pool.query(updateQuery, updateValues);
 
             if (resultado.affectedRows === 0) {
+                console.warn('No se actualizó ninguna mascota:', id);
                 return res.status(404).json({
                     success: false,
                     message: 'Mascota no encontrada'
                 });
             }
+
+            console.log('Mascota actualizada exitosamente:', { id, campos_actualizados: updateFields });
 
             res.json({
                 success: true,
@@ -240,7 +323,7 @@ const mascotasController = {
             res.status(500).json({
                 success: false,
                 message: 'Error al actualizar mascota',
-                error: error.message
+                error: process.env.NODE_ENV === 'production' ? 'Error interno del servidor' : error.message
             });
         }
     },
@@ -249,14 +332,28 @@ const mascotasController = {
     eliminar: async (req, res) => {
         try {
             const { id } = req.params;
-            const [resultado] = await pool.query('DELETE FROM mascotas WHERE id = ?', [id]);
 
-            if (resultado.affectedRows === 0) {
+            // Verificar si la mascota existe
+            const [mascotaExistente] = await pool.query('SELECT id FROM mascotas WHERE id = ?', [id]);
+            if (mascotaExistente.length === 0) {
+                console.warn('Intento de eliminar mascota inexistente:', id);
                 return res.status(404).json({
                     success: false,
                     message: 'Mascota no encontrada'
                 });
             }
+
+            const [resultado] = await pool.query('DELETE FROM mascotas WHERE id = ?', [id]);
+
+            if (resultado.affectedRows === 0) {
+                console.warn('No se eliminó ninguna mascota:', id);
+                return res.status(404).json({
+                    success: false,
+                    message: 'Mascota no encontrada'
+                });
+            }
+
+            console.log('Mascota eliminada exitosamente:', id);
 
             res.json({
                 success: true,
@@ -267,7 +364,7 @@ const mascotasController = {
             res.status(500).json({
                 success: false,
                 message: 'Error al eliminar mascota',
-                error: error.message
+                error: process.env.NODE_ENV === 'production' ? 'Error interno del servidor' : error.message
             });
         }
     }

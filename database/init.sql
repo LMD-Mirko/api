@@ -1,4 +1,7 @@
--- Crear la base 
+-- Eliminar la base de datos si existe
+DROP DATABASE IF EXISTS petconnect1;
+
+-- Crear la base de datos
 CREATE DATABASE IF NOT EXISTS petconnect1;
 
 -- Usar la base de datos
@@ -17,6 +20,7 @@ CREATE TABLE IF NOT EXISTS usuarios (
 CREATE TABLE IF NOT EXISTS mascotas (
     id INT PRIMARY KEY AUTO_INCREMENT,
     nombre VARCHAR(100) NOT NULL,
+    especie VARCHAR(100) NOT NULL,
     edad INT NOT NULL,
     raza VARCHAR(100) NOT NULL,
     tamaño ENUM('Pequeño', 'Mediano', 'Grande') NOT NULL,
@@ -46,17 +50,21 @@ CREATE TABLE IF NOT EXISTS solicitudes_adopcion (
     FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE ON UPDATE CASCADE
 );
 
--- Insertar datos de ejemplo
+-- Insertar datos de ejemplo en usuarios
 INSERT INTO usuarios (nombre, email, password) VALUES
-('Juan Pérez', 'juan@example.com', '$2a$10$rDkPvvAFV6GgW5K7Jvq9Oe3Zz3Z3Z3Z3Z3Z3Z3Z3Z3Z3Z3Z3Z3'),
+('Juan Pérez', 'juan@example.com', '$2a$10$rDkPvvAFV6GgW5K7Jvq9Oe3Zz3Z3Z3Z3Z3Z3Z3Z3Z3Z3Z3Z3'),
 ('María García', 'maria@example.com', '$2a$10$rDkPvvAFV6GgW5K7Jvq9Oe3Zz3Z3Z3Z3Z3Z3Z3Z3Z3Z3Z3Z3'),
 ('Carlos López', 'carlos@example.com', '$2a$10$rDkPvvAFV6GgW5K7Jvq9Oe3Zz3Z3Z3Z3Z3Z3Z3Z3Z3Z3Z3Z3Z3');
 
-INSERT INTO mascotas (nombre, edad, raza, tamaño, vacunado, desparasitado, personalidad, ubicacion, imagen_url, estado) VALUES
-('Max', 2, 'Labrador', 'Grande', TRUE, TRUE, 'Amigable y juguetón', 'Ciudad de México', 'https://ejemplo.com/max.jpg', 'Disponible'),
-('Luna', 1, 'Persa', 'Pequeño', TRUE, TRUE, 'Tranquila y cariñosa', 'Guadalajara', 'https://ejemplo.com/luna.jpg', 'Disponible'),
-('Rocky', 3, 'Bulldog', 'Mediano', TRUE, TRUE, 'Protector y leal', 'Monterrey', 'https://ejemplo.com/rocky.jpg', 'Disponible');
+-- Insertar datos de ejemplo en mascotas
+INSERT INTO mascotas (nombre, especie, edad, raza, tamaño, vacunado, desparasitado, personalidad, ubicacion, imagen_url, estado) VALUES
+('Max', 'Perro', 2, 'Labrador', 'Grande', TRUE, TRUE, 'Amigable y juguetón', 'Ciudad de México', 'https://ejemplo.com/max.jpg', 'Disponible'),
+('Luna', 'Gato', 1, 'Persa', 'Pequeño', TRUE, TRUE, 'Tranquila y cariñosa', 'Guadalajara', 'https://ejemplo.com/luna.jpg', 'Disponible'),
+('Rocky', 'Perro', 3, 'Bulldog', 'Mediano', TRUE, TRUE, 'Protector y leal', 'Monterrey', 'https://ejemplo.com/rocky.jpg', 'Disponible'),
+('Milo', 'Gato', 2, 'Siamés', 'Mediano', TRUE, TRUE, 'Curioso y activo', 'Puebla', 'https://ejemplo.com/milo.jpg', 'Disponible'),
+('Bella', 'Perro', 1, 'Golden Retriever', 'Grande', TRUE, TRUE, 'Dulce y cariñosa', 'Tijuana', 'https://ejemplo.com/bella.jpg', 'Disponible');
 
+-- Insertar datos de ejemplo en solicitudes_adopcion
 INSERT INTO solicitudes_adopcion (mascota_id, usuario_id, nombre_adoptante, email, direccion, telefono, tipo_vivienda, fecha_tramite, otras_mascotas, motivo_adopcion) VALUES
 (1, 1, 'Juan Pérez', 'juan@example.com', 'Calle Principal 123', '555-123-4567', 'Casa', '2024-03-20', FALSE, 'Quiero darle un hogar amoroso a Max'),
 (2, 2, 'María García', 'maria@example.com', 'Avenida Central 456', '555-987-6543', 'Departamento', '2024-03-21', TRUE, 'Busco un compañero para mi gato actual'),
