@@ -1,9 +1,22 @@
 const pool = require('../config/database');
+const {
+    capitalizar,
+    toIntBoolean,
+    isValidUrl,
+    validarCamposRequeridos,
+    validarEdad,
+    validarTamaño,
+    validarEstado
+} = require('../utils/validators');
 
 const mascotasController = {
     // Registrar nueva mascota
     registrar: async (req, res) => {
         try {
+            console.log('=== DEBUG: Inicio de registrar mascota ===');
+            console.log('Request body completo:', JSON.stringify(req.body, null, 2));
+            console.log('Headers:', JSON.stringify(req.headers, null, 2));
+
             const {
                 nombre,
                 especie,
@@ -18,120 +31,111 @@ const mascotasController = {
                 estado
             } = req.body;
 
-            console.log('Datos recibidos:', req.body);
+            // Log de cada campo individual
+            console.log('Campos recibidos:', {
+                nombre: nombre || 'undefined',
+                especie: especie || 'undefined',
+                edad: edad || 'undefined',
+                raza: raza || 'undefined',
+                tamaño: tamaño || 'undefined',
+                vacunado: vacunado || 'undefined',
+                desparasitado: desparasitado || 'undefined',
+                personalidad: personalidad || 'undefined',
+                ubicacion: ubicacion || 'undefined',
+                imagen_url: imagen_url || 'undefined',
+                estado: estado || 'undefined'
+            });
 
             // Validar campos requeridos
-            if (!nombre || !especie || !edad || !raza || !tamaño || !ubicacion) {
-                console.warn('Intento de registro con campos faltantes:', { nombre, especie, edad, raza, tamaño, ubicacion });
+            const camposFaltantes = validarCamposRequeridos(req.body);
+            if (camposFaltantes.length > 0) {
+                console.log('Campos faltantes:', camposFaltantes);
                 return res.status(400).json({
                     success: false,
                     message: 'Faltan campos requeridos',
-                    campos_faltantes: {
-                        nombre: !nombre,
-                        especie: !especie,
-                        edad: !edad,
-                        raza: !raza,
-                        tamaño: !tamaño,
-                        ubicacion: !ubicacion
-                    }
+                    camposFaltantes
                 });
             }
 
-            // Validar tipos de datos
-            if (typeof edad !== 'number' || edad < 0) {
-                console.warn('Edad inválida:', edad);
+            // Validar edad
+            if (!validarEdad(edad)) {
+                console.log('Edad inválida:', edad);
                 return res.status(400).json({
                     success: false,
                     message: 'La edad debe ser un número positivo'
                 });
             }
 
-            // Validar que el tamaño sea uno de los valores permitidos
-            const tamanosPermitidos = ['Pequeño', 'Mediano', 'Grande'];
-            if (!tamanosPermitidos.includes(tamaño)) {
-                console.warn('Tamaño inválido:', tamaño);
+            // Validar tamaño
+            if (!validarTamaño(tamaño)) {
+                console.log('Tamaño inválido:', tamaño);
                 return res.status(400).json({
                     success: false,
-                    message: 'El tamaño debe ser Pequeño, Mediano o Grande',
-                    valores_permitidos: tamanosPermitidos
+                    message: 'El tamaño debe ser Pequeño, Mediano o Grande'
                 });
             }
 
-            // Validar que el estado sea uno de los valores permitidos
-            const estadosPermitidos = ['Disponible', 'Adoptado'];
-            if (estado && !estadosPermitidos.includes(estado)) {
-                console.warn('Estado inválido:', estado);
+            // Validar URL de imagen
+            if (!isValidUrl(imagen_url)) {
+                console.log('URL de imagen inválida:', imagen_url);
                 return res.status(400).json({
                     success: false,
-                    message: 'El estado debe ser Disponible o Adoptado',
-                    valores_permitidos: estadosPermitidos
+                    message: 'La URL de la imagen no es válida'
                 });
             }
 
-            // Sanitizar y validar URLs
-            if (imagen_url && !imagen_url.startsWith('http')) {
-                console.warn('URL de imagen inválida:', imagen_url);
-                return res.status(400).json({
-                    success: false,
-                    message: 'La URL de la imagen debe comenzar con http'
-                });
-            }
+            // Convertir booleanos a 0/1
+            const vacunadoInt = toIntBoolean(vacunado);
+            const desparasitadoInt = toIntBoolean(desparasitado);
 
-            // Convertir vacunado y desparasitado a 1/0
-            const vacunadoInt = vacunado ? 1 : 0;
-            const desparasitadoInt = desparasitado ? 1 : 0;
+            // Capitalizar strings
+            const nombreCapitalizado = capitalizar(nombre.trim());
+            const especieCapitalizada = capitalizar(especie.trim());
+            const razaCapitalizada = capitalizar(raza.trim());
+            const ubicacionCapitalizada = capitalizar(ubicacion.trim());
 
-            // Asegurar que especie tenga un valor válido
-            if (!especie || typeof especie !== 'string' || especie.trim() === '') {
-                console.warn('Especie inválida:', especie);
-                return res.status(400).json({
-                    success: false,
-                    message: 'La especie es requerida y debe ser un texto válido'
-                });
-            }
+            // Log de datos procesados
+            console.log('Datos procesados:', {
+                nombreCapitalizado,
+                especieCapitalizada,
+                edad: Number(edad),
+                razaCapitalizada,
+                tamaño,
+                vacunadoInt,
+                desparasitadoInt,
+                personalidad: personalidad ? personalidad.trim() : null,
+                ubicacionCapitalizada,
+                imagen_url: imagen_url ? imagen_url.trim() : null,
+                estado: estado || 'Disponible'
+            });
 
-            // Capitalizar la primera letra de especie y raza
-            const especieCapitalizada = especie.charAt(0).toUpperCase() + especie.slice(1).toLowerCase();
-            const razaCapitalizada = raza.charAt(0).toUpperCase() + raza.slice(1).toLowerCase();
-
-            // Iniciar transacción
             const connection = await pool.getConnection();
-            await connection.beginTransaction();
-
             try {
-                console.log('Intentando insertar mascota con datos:', {
-                    nombre,
-                    especie: especieCapitalizada,
-                    edad,
-                    raza: razaCapitalizada,
-                    tamaño,
-                    vacunado: vacunadoInt,
-                    desparasitado: desparasitadoInt,
-                    personalidad,
-                    ubicacion,
-                    imagen_url,
-                    estado: estado || 'Disponible'
-                });
-
-                const [resultado] = await connection.query(
-                    `INSERT INTO mascotas 
+                const query = `INSERT INTO mascotas 
                     (nombre, especie, edad, raza, tamaño, vacunado, desparasitado, 
                      personalidad, ubicacion, imagen_url, estado) 
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-                    [nombre, especieCapitalizada, edad, razaCapitalizada, tamaño, vacunadoInt, desparasitadoInt, 
-                     personalidad || null, ubicacion, imagen_url || null, estado || 'Disponible']
-                );
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+                
+                const values = [
+                    nombreCapitalizado,
+                    especieCapitalizada,
+                    Number(edad),
+                    razaCapitalizada,
+                    tamaño,
+                    vacunadoInt,
+                    desparasitadoInt,
+                    personalidad ? personalidad.trim() : null,
+                    ubicacionCapitalizada,
+                    imagen_url ? imagen_url.trim() : null,
+                    estado || 'Disponible'
+                ];
 
-                await connection.commit();
-                connection.release();
+                console.log('Query SQL:', query);
+                console.log('Valores:', values);
 
-                console.log('Mascota registrada exitosamente:', { 
-                    id: resultado.insertId, 
-                    nombre, 
-                    especie: especieCapitalizada,
-                    vacunado: vacunadoInt,
-                    desparasitado: desparasitadoInt
-                });
+                const [resultado] = await connection.query(query, values);
+
+                console.log('Resultado de la inserción:', resultado);
 
                 res.status(201).json({
                     success: true,
@@ -139,27 +143,25 @@ const mascotasController = {
                     data: { id: resultado.insertId }
                 });
             } catch (error) {
-                await connection.rollback();
-                connection.release();
-                console.error('Error en la transacción:', error);
-                
-                // Verificar si el error es específico de la especie
-                if (error.message.includes("Field 'especie'")) {
-                    return res.status(400).json({
-                        success: false,
-                        message: 'Error: El campo especie es requerido y no puede estar vacío',
-                        error: error.message
-                    });
-                }
-                
+                console.error('Error en la inserción:', error);
+                console.error('Código de error:', error.code);
+                console.error('Mensaje de error:', error.message);
+                console.error('Stack trace:', error.stack);
                 throw error;
+            } finally {
+                connection.release();
             }
         } catch (error) {
             console.error('Error al registrar mascota:', error);
+            console.error('Código de error:', error.code);
+            console.error('Mensaje de error:', error.message);
+            console.error('Stack trace:', error.stack);
+            
             res.status(500).json({
                 success: false,
                 message: 'Error al registrar mascota',
-                error: process.env.NODE_ENV === 'production' ? 'Error interno del servidor' : error.message
+                error: error.message,
+                code: error.code
             });
         }
     },
@@ -239,53 +241,37 @@ const mascotasController = {
                 });
             }
 
-            // Validar tipos de datos si se proporcionan
-            if (edad !== undefined && (typeof edad !== 'number' || edad < 0)) {
-                console.warn('Edad inválida:', edad);
+            // Validar edad si se proporciona
+            if (edad !== undefined && !validarEdad(edad)) {
                 return res.status(400).json({
                     success: false,
                     message: 'La edad debe ser un número positivo'
                 });
             }
 
-            // Validar que el tamaño sea uno de los valores permitidos si se proporciona
-            if (tamaño) {
-                const tamanosPermitidos = ['Pequeño', 'Mediano', 'Grande'];
-                if (!tamanosPermitidos.includes(tamaño)) {
-                    console.warn('Tamaño inválido:', tamaño);
-                    return res.status(400).json({
-                        success: false,
-                        message: 'El tamaño debe ser Pequeño, Mediano o Grande',
-                        valores_permitidos: tamanosPermitidos
-                    });
-                }
-            }
-
-            // Validar que el estado sea uno de los valores permitidos si se proporciona
-            if (estado) {
-                const estadosPermitidos = ['Disponible', 'Adoptado'];
-                if (!estadosPermitidos.includes(estado)) {
-                    console.warn('Estado inválido:', estado);
-                    return res.status(400).json({
-                        success: false,
-                        message: 'El estado debe ser Disponible o Adoptado',
-                        valores_permitidos: estadosPermitidos
-                    });
-                }
-            }
-
-            // Sanitizar y validar URLs
-            if (imagen_url && !imagen_url.startsWith('http')) {
-                console.warn('URL de imagen inválida:', imagen_url);
+            // Validar tamaño si se proporciona
+            if (tamaño && !validarTamaño(tamaño)) {
                 return res.status(400).json({
                     success: false,
-                    message: 'La URL de la imagen debe comenzar con http'
+                    message: 'El tamaño debe ser Pequeño, Mediano o Grande'
                 });
             }
 
-            // Convertir vacunado y desparasitado a 1/0 si se proporcionan
-            const vacunadoInt = vacunado !== undefined ? vacunado ? 1 : 0 : undefined;
-            const desparasitadoInt = desparasitado !== undefined ? desparasitado ? 1 : 0 : undefined;
+            // Validar estado si se proporciona
+            if (estado && !validarEstado(estado)) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'El estado debe ser Disponible o Adoptado'
+                });
+            }
+
+            // Validar URL de imagen si se proporciona
+            if (imagen_url && !isValidUrl(imagen_url)) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'La URL de la imagen no es válida'
+                });
+            }
 
             // Construir la consulta dinámicamente
             let updateQuery = 'UPDATE mascotas SET ';
@@ -294,43 +280,43 @@ const mascotasController = {
 
             if (nombre) {
                 updateFields.push('nombre = ?');
-                updateValues.push(nombre);
+                updateValues.push(capitalizar(nombre.trim()));
             }
             if (especie) {
                 updateFields.push('especie = ?');
-                updateValues.push(especie);
+                updateValues.push(capitalizar(especie.trim()));
             }
             if (edad !== undefined) {
                 updateFields.push('edad = ?');
-                updateValues.push(edad);
+                updateValues.push(Number(edad));
             }
             if (raza) {
                 updateFields.push('raza = ?');
-                updateValues.push(raza);
+                updateValues.push(capitalizar(raza.trim()));
             }
             if (tamaño) {
                 updateFields.push('tamaño = ?');
                 updateValues.push(tamaño);
             }
-            if (vacunadoInt !== undefined) {
+            if (vacunado !== undefined) {
                 updateFields.push('vacunado = ?');
-                updateValues.push(vacunadoInt);
+                updateValues.push(toIntBoolean(vacunado));
             }
-            if (desparasitadoInt !== undefined) {
+            if (desparasitado !== undefined) {
                 updateFields.push('desparasitado = ?');
-                updateValues.push(desparasitadoInt);
+                updateValues.push(toIntBoolean(desparasitado));
             }
             if (personalidad !== undefined) {
                 updateFields.push('personalidad = ?');
-                updateValues.push(personalidad);
+                updateValues.push(personalidad.trim());
             }
             if (ubicacion) {
                 updateFields.push('ubicacion = ?');
-                updateValues.push(ubicacion);
+                updateValues.push(capitalizar(ubicacion.trim()));
             }
             if (imagen_url !== undefined) {
                 updateFields.push('imagen_url = ?');
-                updateValues.push(imagen_url);
+                updateValues.push(imagen_url.trim());
             }
             if (estado) {
                 updateFields.push('estado = ?');
@@ -338,7 +324,6 @@ const mascotasController = {
             }
 
             if (updateFields.length === 0) {
-                console.warn('Intento de actualización sin campos:', id);
                 return res.status(400).json({
                     success: false,
                     message: 'No se proporcionaron datos para actualizar'
@@ -351,7 +336,6 @@ const mascotasController = {
             const [resultado] = await pool.query(updateQuery, updateValues);
 
             if (resultado.affectedRows === 0) {
-                console.warn('No se actualizó ninguna mascota:', id);
                 return res.status(404).json({
                     success: false,
                     message: 'Mascota no encontrada'

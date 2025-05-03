@@ -32,13 +32,17 @@ app.use(cors({
     credentials: true
 }));
 
-// Middleware para parsear JSON
+// Middleware para parsear JSON con logging
 app.use(express.json({ 
     limit: '10kb',
     verify: (req, res, buf) => {
         try {
-            JSON.parse(buf);
+            const rawBody = buf.toString();
+            console.log('=== DEBUG: Raw request body ===');
+            console.log(rawBody);
+            JSON.parse(rawBody);
         } catch (e) {
+            console.error('Error parsing JSON:', e);
             res.status(400).json({
                 success: false,
                 message: "JSON inválido en la petición",
@@ -52,12 +56,23 @@ app.use(express.json({
 // Middleware para manejar errores de JSON
 app.use((err, req, res, next) => {
     if (err instanceof SyntaxError && err.status === 400 && 'body' in err) {
+        console.error('Error de sintaxis JSON:', err);
         return res.status(400).json({
             success: false,
             message: "JSON inválido en la petición",
             error: err.message
         });
     }
+    next();
+});
+
+// Middleware para logging de requests
+app.use((req, res, next) => {
+    console.log('=== DEBUG: Request details ===');
+    console.log('Method:', req.method);
+    console.log('URL:', req.url);
+    console.log('Headers:', req.headers);
+    console.log('Body:', req.body);
     next();
 });
 
