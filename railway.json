@@ -5,7 +5,7 @@
     "buildCommand": "npm install --omit=dev"
   },
   "deploy": {
-    "startCommand": "npm start",
+    "startCommand": "npm star",
     "restartPolicyType": "ON_FAILURE",
     "restartPolicyMaxRetries": 10
   }
