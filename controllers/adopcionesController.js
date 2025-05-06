@@ -82,6 +82,7 @@ const adopcionesController = {
                 SELECT 
                     s.*,
                     u.nombre as usuario_nombre,
+                    u.email as usuario_email,
                     m.nombre as mascota_nombre,
                     m.raza as mascota_raza,
                     m.edad as mascota_edad,
